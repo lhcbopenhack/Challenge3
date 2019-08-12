@@ -1,0 +1,42 @@
+# where the generated html and generated python files live
+script_folder="generated_python"
+html_folder="generated_html"
+
+IPYNB_FILES=`git diff --staged --name-only | awk "/.ipynb/"`
+echo "$IPYNB_FILES"
+
+function get_script_extension() {
+	# find file_extension from notebook metadata json, get value from file_extension property
+	echo $(awk '/"file_extension": ".*"/{ print $0 }' $1 | cut -d '"' -f4)
+}
+
+if [[ -n "$IPYNB_FILES" ]]; then
+	for ipynb_file in $IPYNB_FILES
+	do
+		file_name="${ipynb_file##*/}"
+        folder_name=$(dirname "$ipynb_file")
+		filename_no_extension="${file_name%.*}"
+        file_path="$folder_name/$file_name"
+
+		# if file exists and is not a checkpoint file
+		if [[ -f "$ipynb_file" ]] && [[ "$ipynb_file" != *"checkpoint"* ]]; then
+			echo "Creating scripts from notebook."
+			jupyter nbconvert --to script "$file_path"
+			# update scripts file in scripts directory
+			extension=$(get_script_extension "$file_path")
+			mkdir -p "$folder_name/$script_folder"; mv -f "$folder_name/$filename_no_extension$extension" $_
+            # Add to git
+            git add "$folder_name/$script_folder/$filename_no_extension$extension"
+
+			echo "Creating html from notebook."
+			jupyter nbconvert --to html "$file_path"
+			# update html file in html directory
+			mkdir -p $folder_name/$html_folder; mv -f "$folder_name/$filename_no_extension.html" $_
+            git add "$folder_name/$html_folder/$filename_no_extension.html"
+
+			# ### Uncomment the below to clear notebook output ###
+			#echo "Clearing notebook output."
+			#jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace "$file_path"
+		fi
+	done
+fi
