@@ -1,3 +1,4 @@
+#!/bin/bash
 # where the generated html and generated python files live
 script_folder="generated_python"
 html_folder="generated_html"
